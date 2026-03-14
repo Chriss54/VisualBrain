@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRagieClient, toRagiePartition } from '@/lib/ragie';
+import { toRagiePartition } from '@/lib/ragie';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,23 +13,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = getRagieClient();
+    const apiKey = process.env.RAGIE_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'RAGIE_API_KEY not configured' }, { status: 500 });
+    }
+
     const partition = toRagiePartition(userId);
 
-    // Use URL-based upload with the correct SDK method — no file bytes through Vercel
-    const result = await client.documents.createFromUrl({
-      url: storageUrl,
-      name: fileName,
-      metadata: {
-        recordingId,
-        userId,
-        fileName,
-        description: description || '',
-        uploadedAt: new Date().toISOString(),
+    // Use Ragie REST API directly — bypasses SDK TypeScript issues entirely
+    // POST https://api.ragie.ai/documents/url
+    const ragieResponse = await fetch('https://api.ragie.ai/documents/url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
       },
-      mode: { video: 'audio_video' },
-      partition,
+      body: JSON.stringify({
+        url: storageUrl,
+        name: fileName,
+        partition,
+        mode: { video: 'audio_video' },
+        metadata: {
+          recordingId,
+          userId,
+          fileName,
+          description: description || '',
+          uploadedAt: new Date().toISOString(),
+        },
+      }),
     });
+
+    if (!ragieResponse.ok) {
+      const errText = await ragieResponse.text();
+      console.error('Ragie API error:', errText);
+      return NextResponse.json(
+        { error: `Ragie error: ${ragieResponse.status} ${errText}` },
+        { status: 500 }
+      );
+    }
+
+    const result = await ragieResponse.json();
 
     return NextResponse.json({
       ragieDocumentId: result.id,
