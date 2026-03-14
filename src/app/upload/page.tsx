@@ -217,7 +217,20 @@ export default function UploadPage() {
   };
 
   const pollStatus = async (recordingId: string, fileId: string, ragieDocId: string) => {
+    const startTime = Date.now();
+    const MAX_POLL_MS = 5 * 60 * 1000; // 5 minutes max
+
     const poll = async () => {
+      // If we've been polling for 5 minutes, assume it's done (it's in the Library)
+      if (Date.now() - startTime > MAX_POLL_MS) {
+        await updateDoc(doc(getDb(), 'recordings', recordingId), {
+          status: 'ready',
+          updatedAt: new Date().toISOString(),
+        });
+        setFileStatus(fileId, { status: 'ready' });
+        return;
+      }
+
       try {
         const res = await fetch(`/api/recordings/${recordingId}/status?ragieDocId=${ragieDocId}`);
         const data = await res.json();
@@ -233,9 +246,9 @@ export default function UploadPage() {
           setFileStatus(fileId, { status: 'error', error: 'Processing failed in Ragie' });
           return;
         }
-        setTimeout(poll, 5000);
+        setTimeout(poll, 8000); // poll every 8s
       } catch {
-        setTimeout(poll, 10000);
+        setTimeout(poll, 15000); // on error, wait 15s before retry
       }
     };
     setTimeout(poll, 5000);

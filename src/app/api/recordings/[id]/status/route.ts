@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRagieDocumentStatus } from '@/lib/ragie';
+import { toRagiePartition } from '@/lib/ragie';
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +14,26 @@ export async function GET(
       return NextResponse.json({ error: 'Missing ragieDocId' }, { status: 400 });
     }
 
-    const doc = await getRagieDocumentStatus(ragieDocId);
+    const apiKey = process.env.RAGIE_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'RAGIE_API_KEY not configured' }, { status: 500 });
+    }
+
+    // Use Ragie REST API directly — same as upload route
+    const ragieResponse = await fetch(`https://api.ragie.ai/documents/${ragieDocId}`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!ragieResponse.ok) {
+      const errText = await ragieResponse.text();
+      console.error('Ragie status check error:', errText);
+      return NextResponse.json({ error: `Ragie error: ${ragieResponse.status}` }, { status: 500 });
+    }
+
+    const doc = await ragieResponse.json();
 
     // Ragie processes through: pending → partitioning → partitioned → refined →
     // chunked → indexed → summary_indexed → keyword_indexed → ready → failed
