@@ -16,8 +16,8 @@ export async function POST(request: NextRequest) {
     const client = getRagieClient();
     const partition = toRagiePartition(userId);
 
-    // Use URL-based upload — no file body through Vercel, no 4.5 MB limit
-    const result = await client.documents.create({
+    // Use URL-based upload with the correct SDK method — no file bytes through Vercel
+    const result = await client.documents.createFromUrl({
       url: storageUrl,
       name: fileName,
       metadata: {
