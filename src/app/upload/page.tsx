@@ -180,16 +180,19 @@ export default function UploadPage() {
 
       setFileStatus(uploadFile.id, { progress: 65 });
 
-      // 5. Send to Ragie for AI indexing
-      const formData = new FormData();
-      formData.append('file', uploadFile.file);
-      formData.append('recordingId', recRef.id);
-      formData.append('userId', user.uid);
-      formData.append('description', description || '');
-
+      // 5. Send Firebase Storage URL to Ragie for AI indexing
+      // We do NOT send the file bytes through Vercel (4.5 MB limit),
+      // instead we pass the Firebase Storage URL so Ragie fetches it directly.
       const response = await fetch('/api/recordings/upload', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storageUrl,
+          fileName: uploadFile.file.name,
+          recordingId: recRef.id,
+          userId: user.uid,
+          description: description || '',
+        }),
       });
 
       if (!response.ok) {

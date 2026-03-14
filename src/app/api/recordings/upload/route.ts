@@ -1,41 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToRagie, toRagiePartition } from '@/lib/ragie';
+import { getRagieClient, toRagiePartition } from '@/lib/ragie';
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    const recordingId = formData.get('recordingId') as string;
-    const userId = formData.get('userId') as string;
-    const description = formData.get('description') as string;
+    const body = await request.json();
+    const { storageUrl, fileName, recordingId, userId, description } = body;
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    if (!storageUrl || !fileName || !recordingId || !userId) {
+      return NextResponse.json(
+        { error: 'Missing required fields: storageUrl, fileName, recordingId, userId' },
+        { status: 400 }
+      );
     }
 
-    if (!recordingId || !userId) {
-      return NextResponse.json({ error: 'Missing recordingId or userId' }, { status: 400 });
-    }
+    const client = getRagieClient();
+    const partition = toRagiePartition(userId);
 
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Upload to Ragie
-    const result = await uploadToRagie(
-      {
-        rawBytes: buffer,
-        fileName: file.name,
-      },
-      {
+    // Use URL-based upload — no file body through Vercel, no 4.5 MB limit
+    const result = await client.documents.create({
+      url: storageUrl,
+      name: fileName,
+      metadata: {
         recordingId,
         userId,
-        fileName: file.name,        // ← stored so Ask can show the filename
+        fileName,
         description: description || '',
         uploadedAt: new Date().toISOString(),
       },
-      toRagiePartition(userId)
-    );
+      mode: { video: 'audio_video' },
+      partition,
+    });
 
     return NextResponse.json({
       ragieDocumentId: result.id,
