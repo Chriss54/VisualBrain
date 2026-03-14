@@ -37,7 +37,7 @@ interface Idea {
   status: 'new' | 'in-progress' | 'done' | 'archived';
   createdAt: string;
   updatedAt: string;
-  linkedRecordingId?: string;
+  linkedRecordingId?: string | null;
 }
 
 interface Recording {
@@ -167,7 +167,8 @@ export default function IdeasPage() {
         screenshots: [] as string[],
         status: 'new' as const,
         createdAt: now,
-        updatedAt: now,        linkedRecordingId: newLinkedRecording || undefined,
+        updatedAt: now,
+        linkedRecordingId: newLinkedRecording || null,
       };
 
       const docRef = await addDoc(collection(getDb(), 'ideas'), ideaData);
