@@ -167,8 +167,7 @@ export default function IdeasPage() {
         screenshots: [] as string[],
         status: 'new' as const,
         createdAt: now,
-        updatedAt: now,
-        linkedRecordingId: newLinkedRecording || null,
+        updatedAt: now,        linkedRecordingId: newLinkedRecording || undefined,
       };
 
       const docRef = await addDoc(collection(getDb(), 'ideas'), ideaData);
